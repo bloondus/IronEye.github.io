@@ -27,17 +27,32 @@ const UIManager = (function() {
 
     let currentChart = null;
     let editingStockId = null;
+    let exchangeRate = 0.85; // Default fallback rate
 
     /**
-     * Format currency
+     * Update exchange rate from API
      */
-    function formatCurrency(value) {
+    async function updateExchangeRate() {
+        try {
+            exchangeRate = await APIManager.getExchangeRate();
+            console.log(`Exchange rate updated: 1 USD = ${exchangeRate.toFixed(4)} CHF`);
+        } catch (error) {
+            console.warn('Could not fetch exchange rate, using default:', error);
+            exchangeRate = 0.85; // Fallback
+        }
+    }
+
+    /**
+     * Format currency (converts USD to CHF)
+     */
+    function formatCurrency(valueUSD) {
+        const valueCHF = valueUSD * exchangeRate;
         return new Intl.NumberFormat('de-CH', {
             style: 'currency',
             currency: 'CHF',
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
-        }).format(value);
+        }).format(valueCHF);
     }
 
     /**
@@ -534,6 +549,9 @@ const UIManager = (function() {
         updateConnectionStatus();
         window.addEventListener('online', updateConnectionStatus);
         window.addEventListener('offline', updateConnectionStatus);
+        
+        // Fetch exchange rate on init
+        updateExchangeRate();
     }
 
     // Public API
@@ -554,6 +572,7 @@ const UIManager = (function() {
         deleteStock,
         formatCurrency,
         formatPercentage,
-        formatDate
+        formatDate,
+        updateExchangeRate
     };
 })();

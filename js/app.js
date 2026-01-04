@@ -225,6 +225,9 @@ const App = (function() {
         try {
             UIManager.showLoading('Refreshing prices...');
             
+            // Update exchange rate first
+            await UIManager.updateExchangeRate();
+            
             const tickers = [...new Set(portfolioStocks.map(s => s.ticker))];
             await fetchQuotes(tickers);
             

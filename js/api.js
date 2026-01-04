@@ -20,7 +20,8 @@ const APIManager = (function() {
         QUOTE: 300000,      // 5 minutes
         INTRADAY: 300000,   // 5 minutes
         DAILY: 3600000,     // 1 hour
-        NEWS: 1800000       // 30 minutes
+        NEWS: 1800000,      // 30 minutes
+        EXCHANGE_RATE: 3600000  // 1 hour for currency exchange rate
     };
 
     /**
@@ -327,9 +328,39 @@ const APIManager = (function() {
     function isOnline() {
         return navigator.onLine;
     }
+    /**
+     * Get USD to CHF exchange rate
+     */
+    async function getExchangeRate() {
+        const cacheKey = 'exchange_rate_USD_CHF';
+        
+        // Try cache first
+        const cached = await StorageManager.getCachedData(cacheKey);
+        if (cached) {
+            return cached;
+        }
+        
+        checkRateLimit();
+        
+        const url = `${ALPHA_VANTAGE_BASE}?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=CHF&apikey=${ALPHA_VANTAGE_KEY}`;
+        const data = await makeRequest(url);
+    // Public API
+    return {
+        getStockQuote,
+        getIntradayData,
+        getDailyData,
+        getCompanyInfo,
+        searchTicker,
+        getStockNews,
+        batchGetQuotes,
+        getExchangeRate,
+        isOnline,
+        getRateLimitStatus
+    };
 
     /**
      * Get rate limit status
+     */Get rate limit status
      */
     function getRateLimitStatus() {
         const now = Date.now();
