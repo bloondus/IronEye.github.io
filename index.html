@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="IronEye - Personal Stock Portfolio Manager">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>IronEye - Stock Portfolio Manager</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="container">
+            <div class="header-content">
+                <h1><i class="fas fa-chart-line"></i> IronEye</h1>
+                <div class="connection-status" id="connectionStatus">
+                    <i class="fas fa-circle"></i>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container">
+        <!-- Portfolio Summary -->
+        <section class="portfolio-summary" id="portfolioSummary">
+            <div class="summary-card">
+                <h3>Total Value</h3>
+                <p class="summary-value" id="totalValue">$0.00</p>
+            </div>
+            <div class="summary-card">
+                <h3>Total Profit/Loss</h3>
+                <p class="summary-value" id="totalProfit">$0.00</p>
+                <p class="summary-percentage" id="totalProfitPercent">0.00%</p>
+            </div>
+            <div class="summary-card">
+                <h3>Total Stocks</h3>
+                <p class="summary-value" id="totalStocks">0</p>
+            </div>
+        </section>
+
+        <!-- Action Buttons -->
+        <section class="action-bar">
+            <button class="btn btn-primary" id="addStockBtn">
+                <i class="fas fa-plus"></i> Add Stock
+            </button>
+            <button class="btn btn-secondary" id="refreshBtn">
+                <i class="fas fa-sync-alt"></i> Refresh Prices
+            </button>
+        </section>
+
+        <!-- Stock List -->
+        <section class="stock-list" id="stockList">
+            <div class="empty-state" id="emptyState">
+                <i class="fas fa-folder-open"></i>
+                <h2>No stocks in your portfolio</h2>
+                <p>Add your first stock to get started</p>
+            </div>
+        </section>
+
+        <!-- Loading Indicator -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+    </main>
+
+    <!-- Add/Edit Stock Modal -->
+    <div class="modal" id="stockModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add Stock</h2>
+                <button class="close-btn" id="closeModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="stockForm">
+                <div class="form-group">
+                    <label for="tickerSymbol">Ticker Symbol *</label>
+                    <input type="text" id="tickerSymbol" name="ticker" required 
+                           placeholder="e.g., AAPL" maxlength="10">
+                </div>
+                <div class="form-group">
+                    <label for="shares">Number of Shares *</label>
+                    <input type="number" id="shares" name="shares" required 
+                           min="0.001" step="0.001" placeholder="e.g., 10">
+                </div>
+                <div class="form-group">
+                    <label for="buyPrice">Buy Price ($) *</label>
+                    <input type="number" id="buyPrice" name="buyPrice" required 
+                           min="0.01" step="0.01" placeholder="e.g., 150.00">
+                </div>
+                <div class="form-group">
+                    <label for="buyDate">Buy Date *</label>
+                    <input type="date" id="buyDate" name="buyDate" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Stock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stock Details Modal -->
+    <div class="modal" id="detailsModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="detailsTitle">Stock Details</h2>
+                <button class="close-btn" id="closeDetailsModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="details-content">
+                <!-- Stock Info -->
+                <div class="details-info" id="detailsInfo"></div>
+                
+                <!-- Chart -->
+                <div class="chart-container">
+                    <canvas id="priceChart"></canvas>
+                </div>
+
+                <!-- News Section -->
+                <div class="news-section">
+                    <h3><i class="fas fa-newspaper"></i> Latest News</h3>
+                    <button class="btn btn-secondary" id="loadNewsBtn">Load News</button>
+                    <div class="news-list" id="newsList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Icon Generator</title>
+</head>
+<body>
+    <h1>Generating Icons...</h1>
+    <p>This will create placeholder icons for the PWA.</p>
+    
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        
+        sizes.forEach(size => {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Background
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#6c63ff');
+            gradient.addColorStop(1, '#5348d9');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Icon - Chart line
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = size / 20;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            ctx.beginPath();
+            const padding = size * 0.2;
+            const width = size - (padding * 2);
+            const height = size - (padding * 2);
+            
+            // Draw ascending chart line
+            ctx.moveTo(padding, padding + height * 0.7);
+            ctx.lineTo(padding + width * 0.25, padding + height * 0.5);
+            ctx.lineTo(padding + width * 0.5, padding + height * 0.6);
+            ctx.lineTo(padding + width * 0.75, padding + height * 0.3);
+            ctx.lineTo(padding + width, padding + height * 0.1);
+            ctx.stroke();
+            
+            // Add dots at data points
+            ctx.fillStyle = '#ffffff';
+            [
+                [padding, padding + height * 0.7],
+                [padding + width * 0.25, padding + height * 0.5],
+                [padding + width * 0.5, padding + height * 0.6],
+                [padding + width * 0.75, padding + height * 0.3],
+                [padding + width, padding + height * 0.1]
+            ].forEach(([x, y]) => {
+                ctx.beginPath();
+                ctx.arc(x, y, size / 30, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            // Download
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `icon-${size}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        });
+        
+        document.body.innerHTML += '<p>Icons generated! Check your downloads folder.</p>';
+    </script>
+</body>
+</html>
