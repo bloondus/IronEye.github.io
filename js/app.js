@@ -104,6 +104,11 @@ const App = (function() {
             const tickers = [...new Set(portfolioStocks.map(s => s.ticker))];
             await fetchQuotes(tickers);
             
+            // Fetch company names (in background)
+            fetchCompanyNames(tickers).catch(err => 
+                console.warn('Failed to fetch some company names:', err)
+            );
+            
             // Render UI
             UIManager.renderStockList(portfolioStocks, stockQuotes);
             UIManager.renderSummary(portfolioStocks, stockQuotes);
@@ -143,6 +148,45 @@ const App = (function() {
         } catch (error) {
             console.error('Failed to fetch quotes:', error);
             throw error;
+        }
+    }
+    
+    /**
+     * Fetch company names for tickers
+     */
+    async function fetchCompanyNames(tickers) {
+        if (!APIManager.isOnline()) return;
+        
+        for (const ticker of tickers) {
+            try {
+                // Check if we already have company name
+                const hasName = portfolioStocks.some(s => s.ticker === ticker && s.companyName);
+                if (hasName) continue;
+                
+                // Fetch company info
+                const companyInfo = await APIManager.getCompanyInfo(ticker);
+                
+                if (companyInfo && companyInfo.name) {
+                    // Update all stocks with this ticker
+                    for (const stock of portfolioStocks) {
+                        if (stock.ticker === ticker && !stock.companyName) {
+                            stock.companyName = companyInfo.name;
+                            // Update in database
+                            await StorageManager.updateStock(stock.id, { 
+                                companyName: companyInfo.name 
+                            });
+                        }
+                    }
+                    
+                    // Re-render to show company name
+                    UIManager.renderStockList(portfolioStocks, stockQuotes);
+                }
+                
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (error) {
+                console.warn(`Failed to fetch company name for ${ticker}:`, error);
+            }
         }
     }
     

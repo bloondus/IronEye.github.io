@@ -162,11 +162,14 @@ const UIManager = (function() {
         card.className = 'stock-card';
         card.setAttribute('data-stock-id', stock.id);
         
+        // Use company name if available
+        const companyName = stock.companyName || (quote ? quote.symbol : 'Loading...');
+        
         card.innerHTML = `
             <div class="stock-header">
                 <div class="stock-ticker">
                     <h3>${stock.ticker}</h3>
-                    <span class="stock-name">${quote ? quote.symbol : 'Loading...'}</span>
+                    <span class="stock-name">${companyName}</span>
                 </div>
                 <div class="stock-price">
                     <div class="current-price">${quote ? formatCurrency(quote.price) : '---'}</div>
@@ -278,8 +281,11 @@ const UIManager = (function() {
             
             const quote = await APIManager.getStockQuote(stock.ticker);
             
-            // Update modal title
-            document.getElementById('detailsTitle').textContent = `${stock.ticker} - Details`;
+            // Update modal title with company name if available
+            const titleText = stock.companyName ? 
+                `${stock.companyName} (${stock.ticker})` : 
+                `${stock.ticker} - Details`;
+            document.getElementById('detailsTitle').textContent = titleText;
             
             // Render stock info
             const currentValue = quote.price * stock.shares;
