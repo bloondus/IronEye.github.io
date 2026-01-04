@@ -162,14 +162,14 @@ const UIManager = (function() {
         card.className = 'stock-card';
         card.setAttribute('data-stock-id', stock.id);
         
-        // Use company name if available
-        const companyName = stock.companyName || (quote ? quote.symbol : 'Loading...');
+        // Use company name if available, otherwise show ticker
+        const displayName = stock.companyName || stock.ticker;
         
         card.innerHTML = `
             <div class="stock-header">
                 <div class="stock-ticker">
-                    <h3>${stock.ticker}</h3>
-                    <span class="stock-name">${companyName}</span>
+                    <h3>${displayName}</h3>
+                    <span class="stock-name">${stock.ticker}</span>
                 </div>
                 <div class="stock-price">
                     <div class="current-price">${quote ? formatCurrency(quote.price) : '---'}</div>

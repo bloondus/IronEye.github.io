@@ -155,18 +155,32 @@ const App = (function() {
      * Fetch company names for tickers
      */
     async function fetchCompanyNames(tickers) {
-        if (!APIManager.isOnline()) return;
+        if (!APIManager.isOnline()) {
+            console.log('Offline - skipping company name fetch');
+            return;
+        }
+        
+        console.log('Fetching company names for:', tickers);
         
         for (const ticker of tickers) {
             try {
                 // Check if we already have company name
                 const hasName = portfolioStocks.some(s => s.ticker === ticker && s.companyName);
-                if (hasName) continue;
+                if (hasName) {
+                    console.log(`Already have company name for ${ticker}`);
+                    continue;
+                }
+                
+                console.log(`Fetching company info for ${ticker}...`);
                 
                 // Fetch company info
                 const companyInfo = await APIManager.getCompanyInfo(ticker);
                 
+                console.log(`Company info for ${ticker}:`, companyInfo);
+                
                 if (companyInfo && companyInfo.name) {
+                    console.log(`Found company name: ${companyInfo.name}`);
+                    
                     // Update all stocks with this ticker
                     for (const stock of portfolioStocks) {
                         if (stock.ticker === ticker && !stock.companyName) {
@@ -175,11 +189,13 @@ const App = (function() {
                             await StorageManager.updateStock(stock.id, { 
                                 companyName: companyInfo.name 
                             });
+                            console.log(`Updated stock ${stock.id} with company name`);
                         }
                     }
                     
                     // Re-render to show company name
                     UIManager.renderStockList(portfolioStocks, stockQuotes);
+                    console.log('UI re-rendered with company name');
                 }
                 
                 // Small delay to avoid rate limiting
@@ -188,6 +204,8 @@ const App = (function() {
                 console.warn(`Failed to fetch company name for ${ticker}:`, error);
             }
         }
+        
+        console.log('Finished fetching company names');
     }
     
     /**
