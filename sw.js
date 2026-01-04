@@ -7,16 +7,19 @@ const CACHE_VERSION = 'ironeye-v1';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 
+// Base path for GitHub Pages
+const BASE_PATH = '/IronEye.github.io';
+
 // Files to cache immediately
 const STATIC_ASSETS = [
-    '/',
-    '/index.html',
-    '/css/styles.css',
-    '/js/storage.js',
-    '/js/api.js',
-    '/js/ui.js',
-    '/js/app.js',
-    '/manifest.json',
+    `${BASE_PATH}/`,
+    `${BASE_PATH}/index.html`,
+    `${BASE_PATH}/css/styles.css`,
+    `${BASE_PATH}/js/storage.js`,
+    `${BASE_PATH}/js/api.js`,
+    `${BASE_PATH}/js/ui.js`,
+    `${BASE_PATH}/js/app.js`,
+    `${BASE_PATH}/manifest.json`,
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
     'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js'
 ];

@@ -421,7 +421,9 @@ if (document.readyState === 'loading') {
 // Register service worker for PWA support
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/IronEye.github.io/sw.js')
+        navigator.serviceWorker.register('/IronEye.github.io/sw.js', {
+            scope: '/IronEye.github.io/'
+        })
             .then(registration => {
                 console.log('Service Worker registered:', registration);
             })
