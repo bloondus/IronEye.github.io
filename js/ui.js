@@ -32,9 +32,9 @@ const UIManager = (function() {
      * Format currency
      */
     function formatCurrency(value) {
-        return new Intl.NumberFormat('en-US', {
+        return new Intl.NumberFormat('de-CH', {
             style: 'currency',
-            currency: 'USD',
+            currency: 'CHF',
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }).format(value);
