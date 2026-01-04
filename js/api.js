@@ -191,15 +191,20 @@ const APIManager = (function() {
         // Try cache first
         const cached = await StorageManager.getCachedData(cacheKey);
         if (cached) {
+            console.log(`Using cached company info for ${ticker}`);
             return cached;
         }
         
         checkRateLimit();
         
         const url = `${ALPHA_VANTAGE_BASE}?function=OVERVIEW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_KEY}`;
+        console.log(`Fetching company overview from: ${url}`);
         const data = await makeRequest(url);
         
+        console.log(`API Response for ${ticker}:`, data);
+        
         if (!data.Symbol) {
+            console.error(`No Symbol in response for ${ticker}:`, data);
             throw new Error(`No company info found for ticker: ${ticker}`);
         }
         
@@ -215,6 +220,8 @@ const APIManager = (function() {
             week52High: parseFloat(data['52WeekHigh']),
             week52Low: parseFloat(data['52WeekLow'])
         };
+        
+        console.log(`Parsed company info for ${ticker}:`, result);
         
         // Cache for longer (24 hours)
         await StorageManager.cacheData(cacheKey, result, 86400000);
