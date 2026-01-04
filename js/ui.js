@@ -184,22 +184,14 @@ const UIManager = (function() {
                     <span class="detail-value">${formatNumber(stock.shares)}</span>
                 </div>
                 <div class="detail-item">
-                    <span class="detail-label">Buy Price</span>
-                    <span class="detail-value">${formatCurrency(stock.buyPrice)}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">Current Value</span>
+                    <span class="detail-label">Value</span>
                     <span class="detail-value">${formatCurrency(currentValue)}</span>
                 </div>
                 <div class="detail-item">
-                    <span class="detail-label">Profit/Loss</span>
+                    <span class="detail-label">P/L</span>
                     <span class="detail-value ${profitLoss >= 0 ? 'positive' : 'negative'}">
-                        ${formatCurrency(profitLoss)} (${formatPercentage(profitLossPercent)})
+                        ${formatPercentage(profitLossPercent)}
                     </span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">Buy Date</span>
-                    <span class="detail-value">${formatDate(stock.buyDate)}</span>
                 </div>
             </div>
             <div class="stock-actions">

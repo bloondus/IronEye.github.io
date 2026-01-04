@@ -216,37 +216,38 @@ body {
 .stock-card {
     background: var(--card-bg);
     border-radius: var(--border-radius);
-    padding: 1.5rem;
-    margin-bottom: 1rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
     box-shadow: var(--shadow);
     transition: var(--transition);
 }
 
 .stock-card:hover {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
 }
 
 .stock-header {
     display: flex;
     justify-content: space-between;
-    align-items: start;
-    margin-bottom: 1rem;
+    align-items: center;
+    margin-bottom: 0.75rem;
 }
 
 .stock-ticker {
     display: flex;
     flex-direction: column;
+    flex: 1;
 }
 
 .stock-ticker h3 {
-    font-size: 1.5rem;
+    font-size: 1.1rem;
     color: var(--primary-color);
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.15rem;
 }
 
 .stock-ticker .stock-name {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     color: var(--text-gray);
 }
 
@@ -255,14 +256,14 @@ body {
 }
 
 .current-price {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: bold;
 }
 
 .price-change {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    margin-top: 0.25rem;
+    margin-top: 0.15rem;
 }
 
 .price-change.positive {
@@ -275,11 +276,10 @@ body {
 
 .stock-details {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1rem;
-    padding: 1rem 0;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    padding: 0.75rem 0;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .detail-item {
@@ -288,27 +288,32 @@ body {
 }
 
 .detail-label {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     color: var(--text-gray);
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.15rem;
 }
 
 .detail-value {
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 600;
 }
 
 .stock-actions {
     display: flex;
-    gap: 0.5rem;
-    margin-top: 1rem;
-    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
 }
 
 .stock-actions .btn {
     flex: 1;
-    min-width: 120px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
     justify-content: center;
+}
+
+.stock-actions .btn i {
+    font-size: 0.85rem;
+    margin-right: 0.3rem;
 }
 
 /* ===== Modal ===== */
