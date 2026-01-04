@@ -43,6 +43,13 @@ const UIManager = (function() {
     }
 
     /**
+     * Get current exchange rate
+     */
+    function getExchangeRate() {
+        return exchangeRate;
+    }
+
+    /**
      * Format currency (converts USD to CHF)
      */
     function formatCurrency(valueUSD) {
@@ -256,7 +263,9 @@ const UIManager = (function() {
         if (stock) {
             document.getElementById('tickerSymbol').value = stock.ticker;
             document.getElementById('shares').value = stock.shares;
-            document.getElementById('buyPrice').value = stock.buyPrice;
+            // Convert USD buy price to CHF for display
+            const buyPriceCHF = stock.buyPrice * exchangeRate;
+            document.getElementById('buyPrice').value = buyPriceCHF.toFixed(2);
             document.getElementById('buyDate').value = stock.buyDate;
         } else {
             elements.stockForm.reset();
@@ -477,10 +486,13 @@ const UIManager = (function() {
      * Get form data for stock
      */
     function getStockFormData() {
+        const buyPriceCHF = parseFloat(document.getElementById('buyPrice').value);
+        const buyPriceUSD = buyPriceCHF / exchangeRate; // Convert CHF input to USD for storage
+        
         return {
             ticker: document.getElementById('tickerSymbol').value.toUpperCase().trim(),
             shares: parseFloat(document.getElementById('shares').value),
-            buyPrice: parseFloat(document.getElementById('buyPrice').value),
+            buyPrice: buyPriceUSD, // Store in USD
             buyDate: document.getElementById('buyDate').value
         };
     }
@@ -573,6 +585,7 @@ const UIManager = (function() {
         formatCurrency,
         formatPercentage,
         formatDate,
-        updateExchangeRate
+        updateExchangeRate,
+        getExchangeRate
     };
 })();
