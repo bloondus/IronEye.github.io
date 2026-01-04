@@ -328,6 +328,7 @@ const APIManager = (function() {
     function isOnline() {
         return navigator.onLine;
     }
+
     /**
      * Get USD to CHF exchange rate
      */
@@ -344,23 +345,21 @@ const APIManager = (function() {
         
         const url = `${ALPHA_VANTAGE_BASE}?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=CHF&apikey=${ALPHA_VANTAGE_KEY}`;
         const data = await makeRequest(url);
-    // Public API
-    return {
-        getStockQuote,
-        getIntradayData,
-        getDailyData,
-        getCompanyInfo,
-        searchTicker,
-        getStockNews,
-        batchGetQuotes,
-        getExchangeRate,
-        isOnline,
-        getRateLimitStatus
-    };
+        
+        if (!data['Realtime Currency Exchange Rate']) {
+            throw new Error('Could not fetch exchange rate');
+        }
+        
+        const rate = parseFloat(data['Realtime Currency Exchange Rate']['5. Exchange Rate']);
+        
+        // Cache the result
+        await StorageManager.cacheData(cacheKey, rate, CACHE_TTL.EXCHANGE_RATE);
+        
+        return rate;
+    }
 
     /**
      * Get rate limit status
-     */Get rate limit status
      */
     function getRateLimitStatus() {
         const now = Date.now();
@@ -383,6 +382,7 @@ const APIManager = (function() {
         searchTicker,
         getStockNews,
         batchGetQuotes,
+        getExchangeRate,
         isOnline,
         getRateLimitStatus
     };
