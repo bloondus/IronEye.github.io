@@ -270,20 +270,20 @@ const APIManager = (function() {
                     };
                     console.log(`✅ Twelve Data successful for ${ticker}`);
                 } catch (twelveError) {
-                    console.warn(`⚠️ Twelve Data failed, trying Finnhub...`);
+                    console.warn(`⚠️ Twelve Data failed, trying Yahoo Finance...`);
                     
-                    // Fallback to Finnhub for Swiss stocks
-                    const finnhubQuote = await FinnhubAPI.getQuote(ticker);
+                    // Fallback to Yahoo Finance for Swiss stocks (Finnhub doesn't support .SW in free tier)
+                    const yahooQuote = await YahooFinance.getQuote(ticker);
                     result = {
-                        symbol: finnhubQuote.symbol,
-                        price: finnhubQuote.price,
-                        change: finnhubQuote.change,
-                        changePercent: finnhubQuote.changePercent,
-                        volume: 0,
-                        lastUpdated: new Date(finnhubQuote.timestamp * 1000).toISOString().split('T')[0],
-                        source: 'Finnhub'
+                        symbol: yahooQuote.symbol,
+                        price: yahooQuote.price,
+                        change: yahooQuote.change,
+                        changePercent: yahooQuote.changePercent,
+                        currency: yahooQuote.currency,
+                        lastUpdated: yahooQuote.regularMarketTime.toISOString().split('T')[0],
+                        source: 'YahooFinance'
                     };
-                    console.log(`✅ Finnhub successful for ${ticker}`);
+                    console.log(`✅ Yahoo Finance successful for ${ticker}`);
                 }
             } else {
                 // Strategy 2: For US/international stocks, try Alpha Vantage first

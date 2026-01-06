@@ -10,13 +10,32 @@ const TwelveDataAPI = (function() {
     const BASE_URL = 'https://api.twelvedata.com';
 
     /**
+     * Convert ticker to Twelve Data format
+     * Swiss stocks: SCMN.SW -> SWX:SCMN
+     */
+    function formatTickerForTwelveData(ticker) {
+        const upper = ticker.toUpperCase();
+        
+        // Swiss stocks end with .SW
+        if (upper.endsWith('.SW')) {
+            const symbol = upper.replace('.SW', '');
+            const formatted = `${symbol}:SWX`;
+            console.log(`📍 Twelve Data format: ${ticker} → ${formatted}`);
+            return formatted;
+        }
+        
+        return ticker;
+    }
+
+    /**
      * Get real-time stock quote
      */
     async function getQuote(ticker) {
         try {
-            console.log(`🔍 Twelve Data: Fetching quote for ${ticker}`);
+            const formattedTicker = formatTickerForTwelveData(ticker);
+            console.log(`🔍 Twelve Data: Fetching quote for ${formattedTicker}`);
             
-            const url = `${BASE_URL}/quote?symbol=${ticker}&apikey=${API_KEY}`;
+            const url = `${BASE_URL}/quote?symbol=${formattedTicker}&apikey=${API_KEY}`;
             const response = await fetch(url);
             
             if (!response.ok) {
@@ -55,9 +74,10 @@ const TwelveDataAPI = (function() {
      */
     async function getTimeSeries(ticker, interval = '1day', outputsize = 30) {
         try {
-            console.log(`🔍 Twelve Data: Fetching time series for ${ticker}`);
+            const formattedTicker = formatTickerForTwelveData(ticker);
+            console.log(`🔍 Twelve Data: Fetching time series for ${formattedTicker}`);
             
-            const url = `${BASE_URL}/time_series?symbol=${ticker}&interval=${interval}&outputsize=${outputsize}&apikey=${API_KEY}`;
+            const url = `${BASE_URL}/time_series?symbol=${formattedTicker}&interval=${interval}&outputsize=${outputsize}&apikey=${API_KEY}`;
             const response = await fetch(url);
             
             if (!response.ok) {
@@ -133,9 +153,10 @@ const TwelveDataAPI = (function() {
      */
     async function getProfile(ticker) {
         try {
-            console.log(`🔍 Twelve Data: Fetching profile for ${ticker}`);
+            const formattedTicker = formatTickerForTwelveData(ticker);
+            console.log(`🔍 Twelve Data: Fetching profile for ${formattedTicker}`);
             
-            const url = `${BASE_URL}/profile?symbol=${ticker}&apikey=${API_KEY}`;
+            const url = `${BASE_URL}/profile?symbol=${formattedTicker}&apikey=${API_KEY}`;
             const response = await fetch(url);
             
             if (!response.ok) {
