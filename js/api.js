@@ -130,7 +130,7 @@ const APIManager = (function() {
     }
 
     /**
-     * Get current stock quote
+     * Get current stock quote with Yahoo Finance fallback
      */
     async function getStockQuote(ticker) {
         const cacheKey = `quote_${ticker}`;
@@ -141,24 +141,50 @@ const APIManager = (function() {
             return cached;
         }
         
-        checkRateLimit();
+        let result;
         
-        const url = `${ALPHA_VANTAGE_BASE}?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${ALPHA_VANTAGE_KEY}`;
-        const data = await makeRequest(url);
-        
-        if (!data['Global Quote'] || Object.keys(data['Global Quote']).length === 0) {
-            throw new Error(`No data found for ticker: ${ticker}`);
+        try {
+            // Try Alpha Vantage first
+            checkRateLimit();
+            
+            const url = `${ALPHA_VANTAGE_BASE}?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${ALPHA_VANTAGE_KEY}`;
+            const data = await makeRequest(url);
+            
+            if (!data['Global Quote'] || Object.keys(data['Global Quote']).length === 0) {
+                throw new Error(`No data found for ticker: ${ticker}`);
+            }
+            
+            const quote = data['Global Quote'];
+            result = {
+                symbol: quote['01. symbol'],
+                price: parseFloat(quote['05. price']),
+                change: parseFloat(quote['09. change']),
+                changePercent: parseFloat(quote['10. change percent'].replace('%', '')),
+                volume: parseInt(quote['06. volume']),
+                lastUpdated: quote['07. latest trading day'],
+                source: 'AlphaVantage'
+            };
+        } catch (alphaError) {
+            console.warn(`⚠️ Alpha Vantage failed for ${ticker}, trying Yahoo Finance...`);
+            
+            try {
+                // Fallback to Yahoo Finance
+                const yahooQuote = await YahooFinance.getQuote(ticker);
+                result = {
+                    symbol: yahooQuote.symbol,
+                    price: yahooQuote.price,
+                    change: yahooQuote.change,
+                    changePercent: yahooQuote.changePercent,
+                    currency: yahooQuote.currency,
+                    lastUpdated: yahooQuote.regularMarketTime.toISOString().split('T')[0],
+                    source: 'YahooFinance'
+                };
+                console.log(`✅ Yahoo Finance successful for ${ticker}`);
+            } catch (yahooError) {
+                console.error(`❌ Both APIs failed for ${ticker}`);
+                throw new Error(`Could not fetch quote for ${ticker}`);
+            }
         }
-        
-        const quote = data['Global Quote'];
-        const result = {
-            symbol: quote['01. symbol'],
-            price: parseFloat(quote['05. price']),
-            change: parseFloat(quote['09. change']),
-            changePercent: parseFloat(quote['10. change percent'].replace('%', '')),
-            volume: parseInt(quote['06. volume']),
-            lastUpdated: quote['07. latest trading day']
-        };
         
         // Cache the result
         await StorageManager.cacheData(cacheKey, result, CACHE_TTL.QUOTE);
@@ -215,24 +241,51 @@ const APIManager = (function() {
             return cached;
         }
         
-        checkRateLimit();
+        let result;
         
-        const url = `${ALPHA_VANTAGE_BASE}?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=${outputsize}&apikey=${ALPHA_VANTAGE_KEY}`;
-        const data = await makeRequest(url);
-        
-        if (!data['Time Series (Daily)']) {
-            throw new Error(`No daily data found for ticker: ${ticker}`);
+        try {
+            // Try Alpha Vantage first
+            checkRateLimit();
+            
+            const url = `${ALPHA_VANTAGE_BASE}?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=${outputsize}&apikey=${ALPHA_VANTAGE_KEY}`;
+            const data = await makeRequest(url);
+            
+            if (!data['Time Series (Daily)']) {
+                throw new Error(`No daily data found for ticker: ${ticker}`);
+            }
+            
+            const timeSeries = data['Time Series (Daily)'];
+            result = Object.entries(timeSeries).map(([date, values]) => ({
+                date: date,
+                open: parseFloat(values['1. open']),
+                high: parseFloat(values['2. high']),
+                low: parseFloat(values['3. low']),
+                close: parseFloat(values['4. close']),
+                volume: parseInt(values['5. volume'])
+            })).reverse();
+        } catch (alphaError) {
+            // Fallback to Yahoo Finance
+            console.warn(`⚠️ Alpha Vantage failed for ${ticker}, trying Yahoo Finance...`);
+            
+            try {
+                const days = outputsize === 'full' ? 365 : 100; // Map outputsize to days
+                const yahooData = await YahooFinance.getHistoricalData(ticker, days);
+                
+                result = yahooData.map(item => ({
+                    date: item.date,
+                    open: item.open,
+                    high: item.high,
+                    low: item.low,
+                    close: item.close,
+                    volume: item.volume
+                }));
+                
+                console.log(`✅ Yahoo Finance successful for ${ticker}`);
+            } catch (yahooError) {
+                console.error(`❌ Both APIs failed for ${ticker} daily data`);
+                throw new Error(`Could not fetch daily data for ${ticker}`);
+            }
         }
-        
-        const timeSeries = data['Time Series (Daily)'];
-        const result = Object.entries(timeSeries).map(([date, values]) => ({
-            date: date,
-            open: parseFloat(values['1. open']),
-            high: parseFloat(values['2. high']),
-            low: parseFloat(values['3. low']),
-            close: parseFloat(values['4. close']),
-            volume: parseInt(values['5. volume'])
-        })).reverse();
         
         // Cache the result
         await StorageManager.cacheData(cacheKey, result, CACHE_TTL.DAILY);
@@ -253,33 +306,63 @@ const APIManager = (function() {
             return cached;
         }
         
-        checkRateLimit();
+        let result;
         
-        const url = `${ALPHA_VANTAGE_BASE}?function=OVERVIEW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_KEY}`;
-        console.log(`Fetching company overview from: ${url}`);
-        const data = await makeRequest(url);
-        
-        console.log(`API Response for ${ticker}:`, data);
-        
-        if (!data.Symbol) {
-            console.error(`No Symbol in response for ${ticker}:`, data);
-            throw new Error(`No company info found for ticker: ${ticker}`);
+        try {
+            // Try Alpha Vantage first
+            checkRateLimit();
+            
+            const url = `${ALPHA_VANTAGE_BASE}?function=OVERVIEW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_KEY}`;
+            console.log(`Fetching company overview from: ${url}`);
+            const data = await makeRequest(url);
+            
+            console.log(`API Response for ${ticker}:`, data);
+            
+            if (!data.Symbol) {
+                console.error(`No Symbol in response for ${ticker}:`, data);
+                throw new Error(`No company info found for ticker: ${ticker}`);
+            }
+            
+            result = {
+                symbol: data.Symbol,
+                name: data.Name,
+                description: data.Description,
+                sector: data.Sector,
+                industry: data.Industry,
+                marketCap: data.MarketCapitalization,
+                peRatio: data.PERatio,
+                dividendYield: data.DividendYield,
+                week52High: parseFloat(data['52WeekHigh']),
+                week52Low: parseFloat(data['52WeekLow'])
+            };
+            
+            console.log(`Parsed company info for ${ticker}:`, result);
+        } catch (alphaError) {
+            // Fallback to Yahoo Finance
+            console.warn(`⚠️ Alpha Vantage failed for ${ticker}, trying Yahoo Finance...`);
+            
+            try {
+                const yahooInfo = await YahooFinance.getCompanyInfo(ticker);
+                
+                result = {
+                    symbol: yahooInfo.symbol,
+                    name: yahooInfo.name,
+                    description: yahooInfo.description || '',
+                    sector: yahooInfo.sector || 'N/A',
+                    industry: yahooInfo.industry || 'N/A',
+                    marketCap: yahooInfo.marketCap || 'N/A',
+                    peRatio: yahooInfo.peRatio || 'N/A',
+                    dividendYield: yahooInfo.dividendYield || 'N/A',
+                    week52High: yahooInfo.week52High || 0,
+                    week52Low: yahooInfo.week52Low || 0
+                };
+                
+                console.log(`✅ Yahoo Finance successful for ${ticker}`);
+            } catch (yahooError) {
+                console.error(`❌ Both APIs failed for ${ticker} company info`);
+                throw new Error(`Could not fetch company info for ${ticker}`);
+            }
         }
-        
-        const result = {
-            symbol: data.Symbol,
-            name: data.Name,
-            description: data.Description,
-            sector: data.Sector,
-            industry: data.Industry,
-            marketCap: data.MarketCapitalization,
-            peRatio: data.PERatio,
-            dividendYield: data.DividendYield,
-            week52High: parseFloat(data['52WeekHigh']),
-            week52Low: parseFloat(data['52WeekLow'])
-        };
-        
-        console.log(`Parsed company info for ${ticker}:`, result);
         
         // Cache for longer (24 hours)
         await StorageManager.cacheData(cacheKey, result, 86400000);
@@ -291,20 +374,35 @@ const APIManager = (function() {
      * Search for stock ticker
      */
     async function searchTicker(keywords) {
-        const url = `${ALPHA_VANTAGE_BASE}?function=SYMBOL_SEARCH&keywords=${keywords}&apikey=${ALPHA_VANTAGE_KEY}`;
-        const data = await makeRequest(url);
-        
-        if (!data.bestMatches) {
-            return [];
+        try {
+            // Try Alpha Vantage first
+            const url = `${ALPHA_VANTAGE_BASE}?function=SYMBOL_SEARCH&keywords=${keywords}&apikey=${ALPHA_VANTAGE_KEY}`;
+            const data = await makeRequest(url);
+            
+            if (!data.bestMatches) {
+                throw new Error('No matches found');
+            }
+            
+            return data.bestMatches.map(match => ({
+                symbol: match['1. symbol'],
+                name: match['2. name'],
+                type: match['3. type'],
+                region: match['4. region'],
+                currency: match['8. currency']
+            }));
+        } catch (alphaError) {
+            // Fallback to Yahoo Finance
+            console.warn(`⚠️ Alpha Vantage search failed, trying Yahoo Finance...`);
+            
+            try {
+                const yahooResults = await YahooFinance.search(keywords);
+                console.log(`✅ Yahoo Finance search successful`);
+                return yahooResults;
+            } catch (yahooError) {
+                console.error(`❌ Both search APIs failed`);
+                return [];
+            }
         }
-        
-        return data.bestMatches.map(match => ({
-            symbol: match['1. symbol'],
-            name: match['2. name'],
-            type: match['3. type'],
-            region: match['4. region'],
-            currency: match['8. currency']
-        }));
     }
 
     /**
