@@ -166,19 +166,43 @@ const YahooFinance = (function() {
                 return [];
             }
             
-            return data.quotes.map(quote => ({
-                symbol: quote.symbol,
-                name: quote.shortname || quote.longname || quote.symbol,
-                type: quote.quoteType || 'EQUITY',
-                exchange: quote.exchange,
-                region: quote.region || 'US',
-                score: quote.score || 0
+            return data.quotes
+                .filter(quote => quote.quoteType !== 'NEWS') // Filter out news
+                .map(quote => ({
+                    symbol: quote.symbol,
+                    name: quote.shortname || quote.longname || quote.symbol,
+                    type: quote.quoteType || 'EQUITY',
+                    exchange: quote.exchDisp || quote.exchange || '',
+                    region: getRegionFromExchange(quote.exchange),
+                    currency: quote.currency || '',
+                    score: quote.score || 0
             }));
             
         } catch (error) {
             console.error('Yahoo Finance search error:', error);
             return [];
         }
+    }
+
+    /**
+     * Get region from exchange code
+     */
+    function getRegionFromExchange(exchange) {
+        const exchangeMap = {
+            'VTX': 'Switzerland',
+            'EBS': 'Switzerland',
+            'SIX': 'Switzerland',
+            'XSWX': 'Switzerland',
+            'NMS': 'United States',
+            'NYQ': 'United States',
+            'PCX': 'United States',
+            'LSE': 'United Kingdom',
+            'FRA': 'Germany',
+            'PAR': 'France',
+            'TYO': 'Japan',
+            'HKG': 'Hong Kong'
+        };
+        return exchangeMap[exchange] || exchange || 'Unknown';
     }
 
     /**
