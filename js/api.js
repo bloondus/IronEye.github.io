@@ -193,7 +193,7 @@ const APIManager = (function() {
     }
 
     /**
-     * Get current stock quote with Yahoo Finance fallback
+     * Get current stock quote with multi-API fallback strategy
      */
     async function getStockQuote(ticker) {
         const cacheKey = `quote_${ticker}`;
@@ -205,48 +205,83 @@ const APIManager = (function() {
         }
         
         let result;
+        const isSwissStock = ticker.endsWith('.SW');
         
         try {
-            // Try Alpha Vantage first
-            checkRateLimit();
-            
-            const url = `${ALPHA_VANTAGE_BASE}?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${ALPHA_VANTAGE_KEY}`;
-            const data = await makeRequest(url);
-            
-            if (!data['Global Quote'] || Object.keys(data['Global Quote']).length === 0) {
-                throw new Error(`No data found for ticker: ${ticker}`);
+            // Strategy 1: For Swiss stocks, try Twelve Data first
+            if (isSwissStock) {
+                console.log(`🇨🇭 Swiss stock detected: ${ticker}, trying Twelve Data first...`);
+                try {
+                    const twelveQuote = await TwelveDataAPI.getQuote(ticker);
+                    result = {
+                        symbol: twelveQuote.symbol,
+                        price: twelveQuote.price,
+                        change: twelveQuote.change,
+                        changePercent: twelveQuote.changePercent,
+                        volume: twelveQuote.volume,
+                        currency: twelveQuote.currency,
+                        lastUpdated: twelveQuote.lastUpdated,
+                        source: 'TwelveData'
+                    };
+                    console.log(`✅ Twelve Data successful for ${ticker}`);
+                } catch (twelveError) {
+                    console.warn(`⚠️ Twelve Data failed, trying Finnhub...`);
+                    
+                    // Fallback to Finnhub for Swiss stocks
+                    const finnhubQuote = await FinnhubAPI.getQuote(ticker);
+                    result = {
+                        symbol: finnhubQuote.symbol,
+                        price: finnhubQuote.price,
+                        change: finnhubQuote.change,
+                        changePercent: finnhubQuote.changePercent,
+                        volume: 0,
+                        lastUpdated: new Date(finnhubQuote.timestamp * 1000).toISOString().split('T')[0],
+                        source: 'Finnhub'
+                    };
+                    console.log(`✅ Finnhub successful for ${ticker}`);
+                }
+            } else {
+                // Strategy 2: For US/international stocks, try Alpha Vantage first
+                try {
+                    checkRateLimit();
+                    
+                    const url = `${ALPHA_VANTAGE_BASE}?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${ALPHA_VANTAGE_KEY}`;
+                    const data = await makeRequest(url);
+                    
+                    if (!data['Global Quote'] || Object.keys(data['Global Quote']).length === 0) {
+                        throw new Error(`No data found for ticker: ${ticker}`);
+                    }
+                    
+                    const quote = data['Global Quote'];
+                    result = {
+                        symbol: quote['01. symbol'],
+                        price: parseFloat(quote['05. price']),
+                        change: parseFloat(quote['09. change']),
+                        changePercent: parseFloat(quote['10. change percent'].replace('%', '')),
+                        volume: parseInt(quote['06. volume']),
+                        lastUpdated: quote['07. latest trading day'],
+                        source: 'AlphaVantage'
+                    };
+                } catch (alphaError) {
+                    console.warn(`⚠️ Alpha Vantage failed for ${ticker}, trying Finnhub...`);
+                    
+                    // Fallback to Finnhub
+                    const finnhubQuote = await FinnhubAPI.getQuote(ticker);
+                    result = {
+                        symbol: finnhubQuote.symbol,
+                        price: finnhubQuote.price,
+                        change: finnhubQuote.change,
+                        changePercent: finnhubQuote.changePercent,
+                        volume: 0,
+                        lastUpdated: new Date(finnhubQuote.timestamp * 1000).toISOString().split('T')[0],
+                        source: 'Finnhub'
+                    };
+                    console.log(`✅ Finnhub successful for ${ticker}`);
+                }
             }
-            
-            const quote = data['Global Quote'];
-            result = {
-                symbol: quote['01. symbol'],
-                price: parseFloat(quote['05. price']),
-                change: parseFloat(quote['09. change']),
-                changePercent: parseFloat(quote['10. change percent'].replace('%', '')),
-                volume: parseInt(quote['06. volume']),
-                lastUpdated: quote['07. latest trading day'],
-                source: 'AlphaVantage'
-            };
-        } catch (alphaError) {
-            console.warn(`⚠️ Alpha Vantage failed for ${ticker}, trying Yahoo Finance...`);
-            
-            try {
-                // Fallback to Yahoo Finance
-                const yahooQuote = await YahooFinance.getQuote(ticker);
-                result = {
-                    symbol: yahooQuote.symbol,
-                    price: yahooQuote.price,
-                    change: yahooQuote.change,
-                    changePercent: yahooQuote.changePercent,
-                    currency: yahooQuote.currency,
-                    lastUpdated: yahooQuote.regularMarketTime.toISOString().split('T')[0],
-                    source: 'YahooFinance'
-                };
-                console.log(`✅ Yahoo Finance successful for ${ticker}`);
-            } catch (yahooError) {
-                console.error(`❌ Both APIs failed for ${ticker}`);
-                throw new Error(`Could not fetch quote for ${ticker}`);
-            }
+        } catch (finalError) {
+            console.error(`❌ All APIs failed for ${ticker}`);
+            throw new Error(`Could not fetch quote for ${ticker}`);
         }
         
         // Cache the result
@@ -510,9 +545,35 @@ const APIManager = (function() {
             return results;
         }
         
-        // Otherwise, search using APIs
+        // Otherwise, search using APIs with intelligent fallback
         try {
-            // Try Alpha Vantage first
+            // Try Twelve Data first for comprehensive international coverage
+            console.log(`🔍 Trying Twelve Data search...`);
+            const twelveResults = await TwelveDataAPI.search(keywords);
+            
+            if (twelveResults && twelveResults.length > 0) {
+                console.log(`✅ Twelve Data found ${twelveResults.length} results`);
+                return twelveResults;
+            }
+        } catch (twelveError) {
+            console.warn(`⚠️ Twelve Data search failed, trying Finnhub...`);
+        }
+        
+        try {
+            // Fallback to Finnhub
+            console.log(`🔍 Trying Finnhub search...`);
+            const finnhubResults = await FinnhubAPI.search(keywords);
+            
+            if (finnhubResults && finnhubResults.length > 0) {
+                console.log(`✅ Finnhub found ${finnhubResults.length} results`);
+                return finnhubResults;
+            }
+        } catch (finnhubError) {
+            console.warn(`⚠️ Finnhub search failed, trying Alpha Vantage...`);
+        }
+        
+        try {
+            // Try Alpha Vantage
             const url = `${ALPHA_VANTAGE_BASE}?function=SYMBOL_SEARCH&keywords=${keywords}&apikey=${ALPHA_VANTAGE_KEY}`;
             const data = await makeRequest(url);
             
@@ -528,17 +589,8 @@ const APIManager = (function() {
                 currency: match['8. currency']
             }));
         } catch (alphaError) {
-            // Fallback to Yahoo Finance
-            console.warn(`⚠️ Alpha Vantage search failed, trying Yahoo Finance...`);
-            
-            try {
-                const yahooResults = await YahooFinance.search(keywords);
-                console.log(`✅ Yahoo Finance search successful`);
-                return yahooResults;
-            } catch (yahooError) {
-                console.error(`❌ Both search APIs failed`);
-                return [];
-            }
+            console.error(`❌ All search APIs failed`);
+            return [];
         }
     }
 
