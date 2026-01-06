@@ -4,16 +4,25 @@
  */
 
 const APIManager = (function() {
-    // Alpha Vantage API Configuration
-    const ALPHA_VANTAGE_KEY = 'X5LUAWT8B501HEZV';
+    // Alpha Vantage API Configuration - Multiple keys with automatic rotation
+    const ALPHA_VANTAGE_KEYS = [
+        'X5LUAWT8B501HEZV',  // Primary key
+        '6WAK1QLOINYRISY4',  // Fallback 1
+        'YKRVM6CGDW3FO0E8',  // Fallback 2
+        '77O3FLN75S90Z8ZO',  // Fallback 3
+        '7SKHB0ASQA19XAFH'   // Fallback 4
+    ];
+    let currentKeyIndex = 0;
+    let ALPHA_VANTAGE_KEY = ALPHA_VANTAGE_KEYS[currentKeyIndex];
     const ALPHA_VANTAGE_BASE = 'https://www.alphavantage.co/query';
     
-    // Rate limiting
-    const RATE_LIMIT = {
+    // Rate limiting per key
+    const RATE_LIMITS = ALPHA_VANTAGE_KEYS.map(() => ({
         calls: 0,
-        resetTime: Date.now() + 60000, // Reset every minute
-        maxCalls: 5 // Alpha Vantage free tier: 5 calls/min, 500 calls/day
-    };
+        resetTime: Date.now() + 60000,
+        maxCalls: 5,
+        failures: 0
+    }));
 
     // Cache TTL (Time To Live)
     const CACHE_TTL = {
@@ -25,28 +34,49 @@ const APIManager = (function() {
     };
 
     /**
-     * Check and update rate limit
+     * Rotate to next API key
      */
-    function checkRateLimit() {
-        const now = Date.now();
+    function rotateAPIKey() {
+        const oldIndex = currentKeyIndex;
+        currentKeyIndex = (currentKeyIndex + 1) % ALPHA_VANTAGE_KEYS.length;
+        ALPHA_VANTAGE_KEY = ALPHA_VANTAGE_KEYS[currentKeyIndex];
         
-        if (now > RATE_LIMIT.resetTime) {
-            RATE_LIMIT.calls = 0;
-            RATE_LIMIT.resetTime = now + 60000;
-        }
+        console.warn(`🔄 API Key rotated from #${oldIndex + 1} to #${currentKeyIndex + 1}`);
+        console.log(`🔑 Using key: ...${ALPHA_VANTAGE_KEY.slice(-4)}`);
         
-        if (RATE_LIMIT.calls >= RATE_LIMIT.maxCalls) {
-            const waitTime = Math.ceil((RATE_LIMIT.resetTime - now) / 1000);
-            throw new Error(`Rate limit exceeded. Please wait ${waitTime} seconds.`);
-        }
-        
-        RATE_LIMIT.calls++;
+        return ALPHA_VANTAGE_KEY;
     }
 
     /**
-     * Make API request with error handling
+     * Check and update rate limit for current key
      */
-    async function makeRequest(url) {
+    function checkRateLimit() {
+        const limit = RATE_LIMITS[currentKeyIndex];
+        const now = Date.now();
+        
+        if (now > limit.resetTime) {
+            limit.calls = 0;
+            limit.resetTime = now + 60000;
+        }
+        
+        if (limit.calls >= limit.maxCalls) {
+            // Try to rotate to next key
+            console.warn(`⚠️ Rate limit reached for key #${currentKeyIndex + 1}, rotating...`);
+            rotateAPIKey();
+            return checkRateLimit(); // Check new key
+        }
+        
+        limit.calls++;
+    }
+
+    /**
+     * Make API request with error handling and automatic key rotation
+     */
+    async function makeRequest(url, retries = ALPHA_VANTAGE_KEYS.length) {
+        if (retries <= 0) {
+            throw new Error('All API keys exhausted. Please wait a moment.');
+        }
+
         try {
             const response = await fetch(url);
             
@@ -61,13 +91,40 @@ const APIManager = (function() {
                 throw new Error(data['Error Message']);
             }
             
-            if (data['Note']) {
-                throw new Error('API rate limit reached. Please try again later.');
+            // Check for rate limit - rotate key and retry
+            if (data['Note'] || data['Information']) {
+                const message = data['Note'] || data['Information'];
+                if (message.includes('call frequency') || message.includes('Thank you')) {
+                    console.warn(`⚠️ Rate limit detected: ${message}`);
+                    RATE_LIMITS[currentKeyIndex].failures++;
+                    
+                    // Rotate to next key
+                    const oldKey = ALPHA_VANTAGE_KEY;
+                    rotateAPIKey();
+                    
+                    // Rebuild URL with new key
+                    const newUrl = url.replace(oldKey, ALPHA_VANTAGE_KEY);
+                    console.log(`🔄 Retrying with new key...`);
+                    
+                    return makeRequest(newUrl, retries - 1);
+                }
+                throw new Error(message);
             }
+            
+            // Success - reset failure count
+            RATE_LIMITS[currentKeyIndex].failures = 0;
             
             return data;
         } catch (error) {
             console.error('API request failed:', error);
+            
+            // If network error and we have retries left, try next key
+            if (retries > 1 && (error.message.includes('fetch') || error.message.includes('network'))) {
+                rotateAPIKey();
+                const newUrl = url.replace(/apikey=[^&]+/, `apikey=${ALPHA_VANTAGE_KEY}`);
+                return makeRequest(newUrl, retries - 1);
+            }
+            
             throw error;
         }
     }
@@ -362,15 +419,32 @@ const APIManager = (function() {
      * Get rate limit status
      */
     function getRateLimitStatus() {
+        const limit = RATE_LIMITS[currentKeyIndex];
         const now = Date.now();
-        const remaining = RATE_LIMIT.maxCalls - RATE_LIMIT.calls;
-        const resetIn = Math.max(0, Math.ceil((RATE_LIMIT.resetTime - now) / 1000));
+        const remaining = limit.maxCalls - limit.calls;
+        const resetIn = Math.max(0, Math.ceil((limit.resetTime - now) / 1000));
         
         return {
             remaining,
             resetIn,
-            total: RATE_LIMIT.maxCalls
+            total: limit.maxCalls,
+            currentKey: currentKeyIndex + 1,
+            totalKeys: ALPHA_VANTAGE_KEYS.length,
+            keyFailures: RATE_LIMITS.map(l => l.failures)
         };
+    }
+
+    /**
+     * Get API status info for all keys
+     */
+    function getAPIStatus() {
+        return ALPHA_VANTAGE_KEYS.map((key, index) => ({
+            keyNumber: index + 1,
+            keyPreview: `...${key.slice(-4)}`,
+            calls: RATE_LIMITS[index].calls,
+            failures: RATE_LIMITS[index].failures,
+            isActive: index === currentKeyIndex
+        }));
     }
 
     // Public API
@@ -384,6 +458,7 @@ const APIManager = (function() {
         batchGetQuotes,
         getExchangeRate,
         isOnline,
-        getRateLimitStatus
+        getRateLimitStatus,
+        getAPIStatus
     };
 })();
