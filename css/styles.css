@@ -736,11 +736,11 @@ form {
     }
 
     .stock-actions {
-        flex-direction: column;
+        flex-direction: row;
     }
 
     .stock-actions .btn {
-        width: 100%;
+        flex: 1;
     }
 
     .form-actions {
@@ -840,9 +840,11 @@ form {
     .stock-actions {
         gap: 0.2rem;
         margin-top: 0.3rem;
+        flex-direction: row;
     }
 
     .stock-actions .btn {
+        flex: 1;
         padding: 0.25rem 0.3rem;
         font-size: 0.65rem;
     }
