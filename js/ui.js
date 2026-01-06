@@ -261,6 +261,7 @@ const UIManager = (function() {
         modalTitle.textContent = stock ? 'Edit Stock' : 'Add Stock';
         
         if (stock) {
+            document.getElementById('tickerSearch').value = stock.companyName || stock.ticker;
             document.getElementById('tickerSymbol').value = stock.ticker;
             document.getElementById('shares').value = stock.shares;
             // Convert USD buy price to CHF for display
@@ -269,11 +270,16 @@ const UIManager = (function() {
             document.getElementById('buyDate').value = stock.buyDate;
         } else {
             elements.stockForm.reset();
+            document.getElementById('tickerSearch').value = '';
+            document.getElementById('tickerSymbol').value = '';
             // Set default date to today
             document.getElementById('buyDate').value = new Date().toISOString().split('T')[0];
         }
         
         elements.stockModal.classList.add('active');
+        
+        // Setup ticker search
+        setupTickerSearch();
     }
 
     /**
@@ -283,6 +289,90 @@ const UIManager = (function() {
         elements.stockModal.classList.remove('active');
         elements.stockForm.reset();
         editingStockId = null;
+        // Clear suggestions
+        const suggestions = document.getElementById('tickerSuggestions');
+        if (suggestions) {
+            suggestions.classList.remove('active');
+            suggestions.innerHTML = '';
+        }
+    }
+
+    /**
+     * Setup ticker search with autocomplete
+     */
+    let searchTimeout = null;
+    function setupTickerSearch() {
+        const searchInput = document.getElementById('tickerSearch');
+        const suggestionsDiv = document.getElementById('tickerSuggestions');
+        const tickerInput = document.getElementById('tickerSymbol');
+        
+        if (!searchInput || !suggestionsDiv) return;
+        
+        // Remove old listener if exists
+        const newSearchInput = searchInput.cloneNode(true);
+        searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+        
+        newSearchInput.addEventListener('input', async function(e) {
+            const query = e.target.value.trim();
+            
+            // Clear previous timeout
+            if (searchTimeout) clearTimeout(searchTimeout);
+            
+            if (query.length < 2) {
+                suggestionsDiv.classList.remove('active');
+                suggestionsDiv.innerHTML = '';
+                return;
+            }
+            
+            // Show loading
+            suggestionsDiv.classList.add('active');
+            suggestionsDiv.innerHTML = '<div class="suggestion-loading">Searching...</div>';
+            
+            // Debounce search
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const results = await APIManager.searchTicker(query);
+                    
+                    if (results.length === 0) {
+                        suggestionsDiv.innerHTML = '<div class="suggestion-loading">No results found</div>';
+                        return;
+                    }
+                    
+                    // Display suggestions
+                    suggestionsDiv.innerHTML = results.map(result => `
+                        <div class="suggestion-item" data-ticker="${result.symbol}" data-name="${result.name}">
+                            <div class="suggestion-ticker">${result.symbol}</div>
+                            <div class="suggestion-name">${result.name}</div>
+                            <div class="suggestion-type">${result.type} - ${result.region}</div>
+                        </div>
+                    `).join('');
+                    
+                    // Add click handlers
+                    suggestionsDiv.querySelectorAll('.suggestion-item').forEach(item => {
+                        item.addEventListener('click', function() {
+                            const ticker = this.getAttribute('data-ticker');
+                            const name = this.getAttribute('data-name');
+                            
+                            newSearchInput.value = name;
+                            tickerInput.value = ticker;
+                            suggestionsDiv.classList.remove('active');
+                            suggestionsDiv.innerHTML = '';
+                        });
+                    });
+                    
+                } catch (error) {
+                    console.error('Search failed:', error);
+                    suggestionsDiv.innerHTML = '<div class="suggestion-loading">Search failed. Try again.</div>';
+                }
+            }, 500);
+        });
+        
+        // Close suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!newSearchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                suggestionsDiv.classList.remove('active');
+            }
+        });
     }
 
     /**
