@@ -87,6 +87,48 @@ const APIManager = (function() {
         'CFR.SW': 'Compagnie Financière Richemont SA'
     };
 
+    // Swiss ticker mapping (without .SW)
+    const SWISS_TICKER_MAP = {
+        'SCMN': 'SCMN.SW',
+        'NESN': 'NESN.SW',
+        'NOVN': 'NOVN.SW',
+        'ROG': 'ROG.SW',
+        'ABBN': 'ABBN.SW',
+        'UBSG': 'UBSG.SW',
+        'CSGN': 'CSGN.SW',
+        'ZURN': 'ZURN.SW',
+        'SREN': 'SREN.SW',
+        'GIVN': 'GIVN.SW',
+        'LONN': 'LONN.SW',
+        'SLHN': 'SLHN.SW',
+        'SGSN': 'SGSN.SW',
+        'GEBN': 'GEBN.SW',
+        'CFR': 'CFR.SW',
+        'SIKA': 'SIKA.SW',
+        'ALC': 'ALC.SW',
+        'HOLN': 'HOLN.SW'
+    };
+
+    /**
+     * Normalize ticker - add .SW for known Swiss stocks
+     */
+    function normalizeSwissTicker(ticker) {
+        const upper = ticker.toUpperCase().trim();
+        
+        // Already has .SW
+        if (upper.endsWith('.SW')) {
+            return upper;
+        }
+        
+        // Check if it's a known Swiss stock
+        if (SWISS_TICKER_MAP[upper]) {
+            console.log(`📍 Normalized Swiss ticker: ${upper} → ${SWISS_TICKER_MAP[upper]}`);
+            return SWISS_TICKER_MAP[upper];
+        }
+        
+        return ticker;
+    }
+
     // Cache TTL (Time To Live)
     const CACHE_TTL = {
         QUOTE: 300000,      // 5 minutes
@@ -196,6 +238,9 @@ const APIManager = (function() {
      * Get current stock quote with multi-API fallback strategy
      */
     async function getStockQuote(ticker) {
+        // Normalize ticker (add .SW for Swiss stocks)
+        ticker = normalizeSwissTicker(ticker);
+        
         const cacheKey = `quote_${ticker}`;
         
         // Try cache first
