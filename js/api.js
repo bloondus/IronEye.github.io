@@ -440,6 +440,9 @@ const APIManager = (function() {
      * Get company information
      */
     async function getCompanyInfo(ticker) {
+        // Normalize ticker first
+        ticker = normalizeSwissTicker(ticker);
+        
         const cacheKey = `company_${ticker}`;
         
         // Try cache first
@@ -450,61 +453,133 @@ const APIManager = (function() {
         }
         
         let result;
+        const isSwissStock = ticker.endsWith('.SW');
+        
+        // Check hardcoded Swiss company names first
+        if (isSwissStock && SWISS_COMPANIES[ticker]) {
+            result = {
+                symbol: ticker,
+                name: SWISS_COMPANIES[ticker],
+                description: '',
+                sector: 'N/A',
+                industry: 'N/A',
+                marketCap: 'N/A',
+                peRatio: 'N/A',
+                dividendYield: 'N/A',
+                week52High: 0,
+                week52Low: 0
+            };
+            console.log(`✅ Using hardcoded Swiss company name: ${SWISS_COMPANIES[ticker]}`);
+            
+            // Cache for longer (24 hours)
+            await StorageManager.cacheData(cacheKey, result, 86400000);
+            return result;
+        }
         
         try {
-            // Try Alpha Vantage first
-            checkRateLimit();
-            
-            const url = `${ALPHA_VANTAGE_BASE}?function=OVERVIEW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_KEY}`;
-            console.log(`Fetching company overview from: ${url}`);
-            const data = await makeRequest(url);
-            
-            console.log(`API Response for ${ticker}:`, data);
-            
-            if (!data.Symbol) {
-                console.error(`No Symbol in response for ${ticker}:`, data);
-                throw new Error(`No company info found for ticker: ${ticker}`);
+            // For Swiss stocks, try Twelve Data first
+            if (isSwissStock) {
+                try {
+                    const twelveProfile = await TwelveDataAPI.getProfile(ticker);
+                    result = {
+                        symbol: twelveProfile.symbol,
+                        name: twelveProfile.name,
+                        description: twelveProfile.description || '',
+                        sector: twelveProfile.sector || 'N/A',
+                        industry: twelveProfile.industry || 'N/A',
+                        marketCap: 'N/A',
+                        peRatio: 'N/A',
+                        dividendYield: 'N/A',
+                        week52High: 0,
+                        week52Low: 0
+                    };
+                    console.log(`✅ Twelve Data profile successful for ${ticker}`);
+                } catch (twelveError) {
+                    console.warn(`⚠️ Twelve Data profile failed, using hardcoded name if available`);
+                    
+                    // Use hardcoded name as last resort
+                    result = {
+                        symbol: ticker,
+                        name: SWISS_COMPANIES[ticker] || ticker,
+                        description: '',
+                        sector: 'N/A',
+                        industry: 'N/A',
+                        marketCap: 'N/A',
+                        peRatio: 'N/A',
+                        dividendYield: 'N/A',
+                        week52High: 0,
+                        week52Low: 0
+                    };
+                }
+            } else {
+                // For US stocks, try Alpha Vantage first
+                try {
+                    checkRateLimit();
+                    
+                    const url = `${ALPHA_VANTAGE_BASE}?function=OVERVIEW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_KEY}`;
+                    console.log(`Fetching company overview from: ${url}`);
+                    const data = await makeRequest(url);
+                    
+                    console.log(`API Response for ${ticker}:`, data);
+                    
+                    if (!data.Symbol) {
+                        console.error(`No Symbol in response for ${ticker}:`, data);
+                        throw new Error(`No company info found for ticker: ${ticker}`);
+                    }
+                    
+                    result = {
+                        symbol: data.Symbol,
+                        name: data.Name,
+                        description: data.Description,
+                        sector: data.Sector,
+                        industry: data.Industry,
+                        marketCap: data.MarketCapitalization,
+                        peRatio: data.PERatio,
+                        dividendYield: data.DividendYield,
+                        week52High: parseFloat(data['52WeekHigh']),
+                        week52Low: parseFloat(data['52WeekLow'])
+                    };
+                    
+                    console.log(`Parsed company info for ${ticker}:`, result);
+                } catch (alphaError) {
+                    console.warn(`⚠️ Alpha Vantage failed for ${ticker}, trying Finnhub...`);
+                    
+                    try {
+                        const finnhubProfile = await FinnhubAPI.getProfile(ticker);
+                        result = {
+                            symbol: finnhubProfile.symbol,
+                            name: finnhubProfile.name,
+                            description: finnhubProfile.description || '',
+                            sector: 'N/A',
+                            industry: finnhubProfile.industry || 'N/A',
+                            marketCap: finnhubProfile.marketCap || 'N/A',
+                            peRatio: 'N/A',
+                            dividendYield: 'N/A',
+                            week52High: 0,
+                            week52Low: 0
+                        };
+                        console.log(`✅ Finnhub profile successful for ${ticker}`);
+                    } catch (finnhubError) {
+                        console.error(`❌ All APIs failed for ${ticker} company info`);
+                        throw new Error(`Could not fetch company info for ${ticker}`);
+                    }
+                }
             }
-            
+        } catch (finalError) {
+            console.error(`❌ Could not get company info for ${ticker}`);
+            // Return ticker as name as last resort
             result = {
-                symbol: data.Symbol,
-                name: data.Name,
-                description: data.Description,
-                sector: data.Sector,
-                industry: data.Industry,
-                marketCap: data.MarketCapitalization,
-                peRatio: data.PERatio,
-                dividendYield: data.DividendYield,
-                week52High: parseFloat(data['52WeekHigh']),
-                week52Low: parseFloat(data['52WeekLow'])
+                symbol: ticker,
+                name: ticker,
+                description: '',
+                sector: 'N/A',
+                industry: 'N/A',
+                marketCap: 'N/A',
+                peRatio: 'N/A',
+                dividendYield: 'N/A',
+                week52High: 0,
+                week52Low: 0
             };
-            
-            console.log(`Parsed company info for ${ticker}:`, result);
-        } catch (alphaError) {
-            // Fallback to Yahoo Finance
-            console.warn(`⚠️ Alpha Vantage failed for ${ticker}, trying Yahoo Finance...`);
-            
-            try {
-                const yahooInfo = await YahooFinance.getCompanyInfo(ticker);
-                
-                result = {
-                    symbol: yahooInfo.symbol,
-                    name: yahooInfo.name,
-                    description: yahooInfo.description || '',
-                    sector: yahooInfo.sector || 'N/A',
-                    industry: yahooInfo.industry || 'N/A',
-                    marketCap: yahooInfo.marketCap || 'N/A',
-                    peRatio: yahooInfo.peRatio || 'N/A',
-                    dividendYield: yahooInfo.dividendYield || 'N/A',
-                    week52High: yahooInfo.week52High || 0,
-                    week52Low: yahooInfo.week52Low || 0
-                };
-                
-                console.log(`✅ Yahoo Finance successful for ${ticker}`);
-            } catch (yahooError) {
-                console.error(`❌ Both APIs failed for ${ticker} company info`);
-                throw new Error(`Could not fetch company info for ${ticker}`);
-            }
         }
         
         // Cache for longer (24 hours)
