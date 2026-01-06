@@ -24,6 +24,69 @@ const APIManager = (function() {
         failures: 0
     }));
 
+    // Swiss Valor numbers to ticker mapping
+    const SWISS_VALOR = {
+        '874251': 'SCMN.SW',      // Swisscom
+        '3886335': 'NESN.SW',     // Nestlé
+        '1200526': 'NOVN.SW',     // Novartis
+        '1203204': 'ROG.SW',      // Roche
+        '1213860': 'ABBN.SW',     // ABB
+        '24476758': 'UBSG.SW',    // UBS
+        '1213853': 'CSGN.SW',     // Credit Suisse
+        '1107539': 'ZURN.SW',     // Zurich Insurance
+        '1485278': 'SREN.SW',     // Swiss Re
+        '1064593': 'GIVN.SW',     // Givaudan
+        '1384101': 'LONN.SW',     // Lonza
+        '1485287': 'SLHN.SW',     // Swiss Life
+        '1226836': 'SGSN.SW',     // SGS
+        '2414615': 'GEBN.SW',     // Geberit
+        '21048333': 'CFR.SW'      // Richemont
+    };
+
+    // ISIN to ticker mapping
+    const ISIN_TO_TICKER = {
+        // Swiss stocks (CH prefix)
+        'CH0008742519': 'SCMN.SW',    // Swisscom
+        'CH0038863350': 'NESN.SW',    // Nestlé
+        'CH0012005267': 'NOVN.SW',    // Novartis
+        'CH0012032048': 'ROG.SW',     // Roche
+        'CH0012138530': 'ABBN.SW',    // ABB
+        'CH0244767585': 'UBSG.SW',    // UBS
+        'CH0012138522': 'CSGN.SW',    // Credit Suisse
+        'CH0011075394': 'ZURN.SW',    // Zurich Insurance
+        'CH0014852781': 'SREN.SW',    // Swiss Re
+        'CH0010645932': 'GIVN.SW',    // Givaudan
+        'CH0013841017': 'LONN.SW',    // Lonza
+        'CH0014852872': 'SLHN.SW',    // Swiss Life
+        'CH0002268036': 'SGSN.SW',    // SGS
+        'CH0024146153': 'GEBN.SW',    // Geberit
+        'CH0210483332': 'CFR.SW',     // Richemont
+        // US stocks (optional examples)
+        'US0378331005': 'AAPL',       // Apple
+        'US5949181045': 'MSFT',       // Microsoft
+        'US88160R1014': 'TSLA',       // Tesla
+        'US02079K3059': 'GOOGL'       // Alphabet/Google
+    };
+
+    // Swiss company names for display
+    const SWISS_COMPANIES = {
+        'SCMN.SW': 'Swisscom AG',
+        'NESN.SW': 'Nestlé SA',
+        'NOVN.SW': 'Novartis AG',
+        'ROG.SW': 'Roche Holding AG',
+        'ABBN.SW': 'ABB Ltd',
+        'UBSG.SW': 'UBS Group AG',
+        'CSGN.SW': 'Credit Suisse Group AG',
+        'ZURN.SW': 'Zurich Insurance Group AG',
+        'SREN.SW': 'Swiss Re AG',
+        'GIVN.SW': 'Givaudan SA',
+        'LONN.SW': 'Lonza Group AG',
+        'SLHN.SW': 'Swiss Life Holding AG',
+        'SGSN.SW': 'SGS SA',
+        'GEBN.SW': 'Geberit AG',
+        'CFR.SW': 'Compagnie Financière Richemont SA'
+    };
+
     // Cache TTL (Time To Live)
     const CACHE_TTL = {
         QUOTE: 300000,      // 5 minutes
@@ -371,9 +434,83 @@ const APIManager = (function() {
     }
 
     /**
-     * Search for stock ticker
+     * Detect if input is Valor number, ISIN, or ticker
+     */
+    function detectSecurityIdentifier(input) {
+        const cleaned = input.trim().toUpperCase().replace(/\s/g, '');
+        
+        // Check if it's an ISIN (2 letters + 10 digits/letters)
+        if (/^[A-Z]{2}[A-Z0-9]{10}$/.test(cleaned)) {
+            const ticker = ISIN_TO_TICKER[cleaned];
+            if (ticker) {
+                console.log(`📋 ISIN detected: ${cleaned} → ${ticker}`);
+                return {
+                    type: 'ISIN',
+                    value: cleaned,
+                    ticker: ticker
+                };
+            }
+        }
+        
+        // Check if it's a Valor number (Swiss: 6-9 digits)
+        if (/^\d{6,9}$/.test(cleaned)) {
+            const ticker = SWISS_VALOR[cleaned];
+            if (ticker) {
+                console.log(`🔢 Valor detected: ${cleaned} → ${ticker}`);
+                return {
+                    type: 'VALOR',
+                    value: cleaned,
+                    ticker: ticker
+                };
+            }
+        }
+        
+        // Otherwise treat as ticker or company name
+        return {
+            type: 'TICKER',
+            value: cleaned,
+            ticker: null
+        };
+    }
+
+    /**
+     * Search for stock ticker with Valor/ISIN support
      */
     async function searchTicker(keywords) {
+        if (!keywords || keywords.length < 2) {
+            return [];
+        }
+
+        let results = [];
+        
+        // First, check if input is a Valor number or ISIN
+        const identifier = detectSecurityIdentifier(keywords);
+        
+        if (identifier.ticker && (identifier.type === 'ISIN' || identifier.type === 'VALOR')) {
+            // Direct match found - add it first with high priority
+            const ticker = identifier.ticker;
+            const companyName = SWISS_COMPANIES[ticker] || ticker;
+            const identifierInfo = identifier.type === 'VALOR' 
+                ? ` (Valor: ${identifier.value})`
+                : ` (ISIN: ${identifier.value})`;
+            
+            results.push({
+                symbol: ticker,
+                name: companyName + identifierInfo,
+                type: 'EQUITY',
+                region: 'Switzerland',
+                currency: 'CHF',
+                matchScore: 1.0,
+                source: identifier.type
+            });
+            
+            console.log(`✅ Found ${identifier.type} match: ${ticker} - ${companyName}`);
+            
+            // Return immediately for direct matches
+            return results;
+        }
+        
+        // Otherwise, search using APIs
         try {
             // Try Alpha Vantage first
             const url = `${ALPHA_VANTAGE_BASE}?function=SYMBOL_SEARCH&keywords=${keywords}&apikey=${ALPHA_VANTAGE_KEY}`;
@@ -405,7 +542,7 @@ const APIManager = (function() {
         }
     }
 
-    /**
+    /**    /**
      * Get news articles for a stock
      * Using a news API or fallback to Google News search
      */

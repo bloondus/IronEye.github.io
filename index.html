@@ -80,9 +80,9 @@
             </div>
             <form id="stockForm">
                 <div class="form-group ticker-search-group">
-                    <label for="tickerSearch">Search Stock / Company / Ticker *</label>
+                    <label for="tickerSearch">Search Stock / Company / Ticker / Valor / ISIN *</label>
                     <input type="text" id="tickerSearch" name="tickerSearch" 
-                           placeholder="Type: Apple, TSLA, SCMN (Swisscom), NESN (Nestlé)..." 
+                           placeholder="z.B. Swisscom, SCMN, 874251, CH0008742519..." 
                            autocomplete="off"
                            required>
                     <input type="hidden" id="tickerSymbol" name="ticker" required>
@@ -92,7 +92,7 @@
                         <span id="selectedTickerText"></span>
                     </div>
                     <small class="form-hint" style="display: block; margin-top: 0.3rem; color: #888; font-size: 0.75rem;">
-                        💡 Schweizer Aktien: SCMN (Swisscom), NESN (Nestlé), NOVN (Novartis), ROG (Roche), UBSG (UBS)
+                        💡 Schweizer Aktien: Name, Ticker (SCMN.SW), Valor (874251), ISIN (CH0008742519)
                     </small>
                 </div>
                 <div class="form-group">
