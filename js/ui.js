@@ -305,6 +305,8 @@ const UIManager = (function() {
         const searchInput = document.getElementById('tickerSearch');
         const suggestionsDiv = document.getElementById('tickerSuggestions');
         const tickerInput = document.getElementById('tickerSymbol');
+        const selectedDiv = document.getElementById('selectedTicker');
+        const selectedText = document.getElementById('selectedTickerText');
         
         if (!searchInput || !suggestionsDiv) return;
         
@@ -314,6 +316,10 @@ const UIManager = (function() {
         
         newSearchInput.addEventListener('input', async function(e) {
             const query = e.target.value.trim();
+            
+            // Clear selection
+            if (selectedDiv) selectedDiv.style.display = 'none';
+            tickerInput.value = '';
             
             // Clear previous timeout
             if (searchTimeout) clearTimeout(searchTimeout);
@@ -326,7 +332,7 @@ const UIManager = (function() {
             
             // Show loading
             suggestionsDiv.classList.add('active');
-            suggestionsDiv.innerHTML = '<div class="suggestion-loading">Searching...</div>';
+            suggestionsDiv.innerHTML = '<div class="suggestion-loading"><i class="fas fa-spinner fa-spin"></i> Searching...</div>';
             
             // Debounce search
             searchTimeout = setTimeout(async () => {
@@ -339,7 +345,7 @@ const UIManager = (function() {
                     }
                     
                     // Display suggestions
-                    suggestionsDiv.innerHTML = results.map(result => `
+                    suggestionsDiv.innerHTML = results.slice(0, 10).map(result => `
                         <div class="suggestion-item" data-ticker="${result.symbol}" data-name="${result.name}">
                             <div class="suggestion-ticker">${result.symbol}</div>
                             <div class="suggestion-name">${result.name}</div>
@@ -353,8 +359,15 @@ const UIManager = (function() {
                             const ticker = this.getAttribute('data-ticker');
                             const name = this.getAttribute('data-name');
                             
-                            newSearchInput.value = name;
+                            newSearchInput.value = `${ticker} - ${name}`;
                             tickerInput.value = ticker;
+                            
+                            // Show selected ticker
+                            if (selectedDiv && selectedText) {
+                                selectedText.textContent = `Selected: ${ticker} - ${name}`;
+                                selectedDiv.style.display = 'flex';
+                            }
+                            
                             suggestionsDiv.classList.remove('active');
                             suggestionsDiv.innerHTML = '';
                         });
@@ -362,7 +375,7 @@ const UIManager = (function() {
                     
                 } catch (error) {
                     console.error('Search failed:', error);
-                    suggestionsDiv.innerHTML = '<div class="suggestion-loading">Search failed. Try again.</div>';
+                    suggestionsDiv.innerHTML = '<div class="suggestion-loading"><i class="fas fa-exclamation-triangle"></i> Search failed. Try again.</div>';
                 }
             }, 500);
         });

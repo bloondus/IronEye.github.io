@@ -79,17 +79,18 @@
                 </button>
             </div>
             <form id="stockForm">
-                <div class="form-group">
-                    <label for="tickerSearch">Search Company or Ticker *</label>
+                <div class="form-group ticker-search-group">
+                    <label for="tickerSearch">Search Stock / Company / Ticker *</label>
                     <input type="text" id="tickerSearch" name="tickerSearch" 
-                           placeholder="e.g., Apple, Microsoft, TSLA, Gold..." 
-                           autocomplete="off">
+                           placeholder="Type: Apple, Microsoft, TSLA, Gold..." 
+                           autocomplete="off"
+                           required>
+                    <input type="hidden" id="tickerSymbol" name="ticker" required>
                     <div class="ticker-suggestions" id="tickerSuggestions"></div>
-                </div>
-                <div class="form-group">
-                    <label for="tickerSymbol">Selected Ticker Symbol *</label>
-                    <input type="text" id="tickerSymbol" name="ticker" required 
-                           placeholder="e.g., AAPL" maxlength="10" readonly>
+                    <div class="selected-ticker" id="selectedTicker" style="display:none;">
+                        <i class="fas fa-check-circle"></i>
+                        <span id="selectedTickerText"></span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="shares">Number of Shares *</label>

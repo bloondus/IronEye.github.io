@@ -427,6 +427,27 @@ form {
     position: relative;
 }
 
+.ticker-search-group {
+    margin-bottom: 1.5rem;
+}
+
+.selected-ticker {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(46, 213, 115, 0.1);
+    border: 1px solid var(--success-color);
+    border-radius: 6px;
+    color: var(--success-color);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.selected-ticker i {
+    font-size: 1rem;
+}
+
 .ticker-suggestions {
     position: absolute;
     width: 100%;
@@ -438,6 +459,7 @@ form {
     margin-top: 0.25rem;
     z-index: 1000;
     display: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .ticker-suggestions.active {
