@@ -4,6 +4,8 @@
  */
 
 const YahooFinance = (function() {
+    // Use CORS proxy for Yahoo Finance API
+    const CORS_PROXY = 'https://corsproxy.io/?';
     const BASE_URL = 'https://query1.finance.yahoo.com/v8/finance';
     const SEARCH_URL = 'https://query2.finance.yahoo.com/v1/finance/search';
 
@@ -59,12 +61,8 @@ const YahooFinance = (function() {
         const normalizedTicker = normalizeTicker(ticker);
         
         try {
-            const url = `${BASE_URL}/chart/${normalizedTicker}?interval=1d&range=1d`;
-            const response = await fetch(url, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            });
+            const url = `${CORS_PROXY}${encodeURIComponent(BASE_URL + '/chart/' + normalizedTicker + '?interval=1d&range=1d')}`;
+            const response = await fetch(url);
             
             if (!response.ok) {
                 throw new Error(`Yahoo Finance API error: ${response.status}`);
@@ -108,12 +106,8 @@ const YahooFinance = (function() {
             const period2 = Math.floor(Date.now() / 1000);
             const period1 = period2 - (days * 24 * 60 * 60);
             
-            const url = `${BASE_URL}/chart/${normalizedTicker}?period1=${period1}&period2=${period2}&interval=1d`;
-            const response = await fetch(url, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            });
+            const url = `${CORS_PROXY}${encodeURIComponent(BASE_URL + '/chart/' + normalizedTicker + '?period1=' + period1 + '&period2=' + period2 + '&interval=1d')}`;
+            const response = await fetch(url);
             
             if (!response.ok) {
                 throw new Error(`Yahoo Finance API error: ${response.status}`);
@@ -149,12 +143,8 @@ const YahooFinance = (function() {
      */
     async function search(query) {
         try {
-            const url = `${SEARCH_URL}?q=${encodeURIComponent(query)}&quotesCount=10&newsCount=0`;
-            const response = await fetch(url, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            });
+            const url = `${CORS_PROXY}${encodeURIComponent(SEARCH_URL + '?q=' + encodeURIComponent(query) + '&quotesCount=10&newsCount=0')}`;
+            const response = await fetch(url);
             
             if (!response.ok) {
                 throw new Error(`Yahoo Finance search error: ${response.status}`);
