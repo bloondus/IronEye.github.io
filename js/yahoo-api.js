@@ -8,12 +8,63 @@ const YahooFinance = (function() {
     const SEARCH_URL = 'https://query2.finance.yahoo.com/v1/finance/search';
 
     /**
+     * Normalize ticker symbol for Swiss stocks
+     * Converts common formats to Yahoo Finance format
+     */
+    function normalizeTicker(ticker) {
+        const upper = ticker.toUpperCase().trim();
+        
+        // If already has .SW suffix, return as is
+        if (upper.endsWith('.SW')) {
+            return upper;
+        }
+        
+        // Known Swiss stock mappings (SIX Swiss Exchange)
+        const swissStocks = {
+            'SCMN': 'SCMN.SW',      // Swisscom
+            'NESN': 'NESN.SW',      // Nestlé
+            'NOVN': 'NOVN.SW',      // Novartis
+            'ROG': 'ROG.SW',        // Roche
+            'UBSG': 'UBSG.SW',      // UBS
+            'CSGN': 'CSGN.SW',      // Credit Suisse
+            'ABBN': 'ABBN.SW',      // ABB
+            'ZURN': 'ZURN.SW',      // Zurich Insurance
+            'SREN': 'SREN.SW',      // Swiss Re
+            'GIVN': 'GIVN.SW',      // Givaudan
+            'LONN': 'LONN.SW',      // Lonza
+            'SLHN': 'SLHN.SW',      // Swiss Life
+            'SGSN': 'SGSN.SW',      // SGS
+            'GEBN': 'GEBN.SW',      // Geberit
+            'CFCN': 'CFCN.SW',      // CFR Compagnie Financière Richemont
+            'SIKA': 'SIKA.SW',      // Sika
+            'ALC': 'ALC.SW',        // Alcon
+            'HOLN': 'HOLN.SW',      // Holcim
+        };
+        
+        // Check if it's a known Swiss stock
+        if (swissStocks[upper]) {
+            console.log(`📍 Normalized Swiss ticker: ${upper} → ${swissStocks[upper]}`);
+            return swissStocks[upper];
+        }
+        
+        // Return as is for other tickers
+        return upper;
+    }
+
+    /**
      * Get stock quote from Yahoo Finance
      */
     async function getQuote(ticker) {
+        // Normalize ticker (especially for Swiss stocks)
+        const normalizedTicker = normalizeTicker(ticker);
+        
         try {
-            const url = `${BASE_URL}/chart/${ticker}?interval=1d&range=1d`;
-            const response = await fetch(url);
+            const url = `${BASE_URL}/chart/${normalizedTicker}?interval=1d&range=1d`;
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
             
             if (!response.ok) {
                 throw new Error(`Yahoo Finance API error: ${response.status}`);
@@ -50,12 +101,19 @@ const YahooFinance = (function() {
      * Get historical data from Yahoo Finance
      */
     async function getHistoricalData(ticker, days = 30) {
+        // Normalize ticker (especially for Swiss stocks)
+        const normalizedTicker = normalizeTicker(ticker);
+        
         try {
             const period2 = Math.floor(Date.now() / 1000);
             const period1 = period2 - (days * 24 * 60 * 60);
             
-            const url = `${BASE_URL}/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1d`;
-            const response = await fetch(url);
+            const url = `${BASE_URL}/chart/${normalizedTicker}?period1=${period1}&period2=${period2}&interval=1d`;
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
             
             if (!response.ok) {
                 throw new Error(`Yahoo Finance API error: ${response.status}`);
@@ -92,7 +150,11 @@ const YahooFinance = (function() {
     async function search(query) {
         try {
             const url = `${SEARCH_URL}?q=${encodeURIComponent(query)}&quotesCount=10&newsCount=0`;
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
             
             if (!response.ok) {
                 throw new Error(`Yahoo Finance search error: ${response.status}`);
@@ -123,8 +185,11 @@ const YahooFinance = (function() {
      * Get company info
      */
     async function getCompanyInfo(ticker) {
+        // Normalize ticker (especially for Swiss stocks)
+        const normalizedTicker = normalizeTicker(ticker);
+        
         try {
-            const quote = await getQuote(ticker);
+            const quote = await getQuote(normalizedTicker);
             
             return {
                 symbol: quote.symbol,
