@@ -50,10 +50,10 @@ const UIManager = (function() {
     }
 
     /**
-     * Format currency (converts USD to CHF)
+     * Format currency (converts USD to CHF unless skipConversion is true)
      */
-    function formatCurrency(valueUSD) {
-        const valueCHF = valueUSD * exchangeRate;
+    function formatCurrency(value, skipConversion = false) {
+        const valueCHF = skipConversion ? value : value * exchangeRate;
         return new Intl.NumberFormat('de-CH', {
             style: 'currency',
             currency: 'CHF',
@@ -152,8 +152,14 @@ const UIManager = (function() {
         stocks.forEach(stock => {
             const quote = quotes[stock.ticker];
             if (quote) {
-                const currentValue = quote.price * stock.shares;
-                const costBasis = stock.buyPrice * stock.shares;
+                // For Swiss stocks: prices are already in CHF
+                // For other stocks: prices are in USD, need to convert to CHF
+                const skipConversion = quote.skipConversion || false;
+                const priceInCHF = skipConversion ? quote.price : quote.price * exchangeRate;
+                const buyPriceInCHF = skipConversion ? stock.buyPrice : stock.buyPrice * exchangeRate;
+                
+                const currentValue = priceInCHF * stock.shares;
+                const costBasis = buyPriceInCHF * stock.shares;
                 totalValue += currentValue;
                 totalCost += costBasis;
             }
@@ -162,9 +168,10 @@ const UIManager = (function() {
         const totalProfit = totalValue - totalCost;
         const totalProfitPercent = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
         
-        elements.totalValue.textContent = formatCurrency(totalValue);
+        // Total values already in CHF, no conversion needed
+        elements.totalValue.textContent = formatCurrency(totalValue, true);
         elements.totalStocks.textContent = stocks.length;
-        elements.totalProfit.textContent = formatCurrency(totalProfit);
+        elements.totalProfit.textContent = formatCurrency(totalProfit, true);
         elements.totalProfitPercent.textContent = formatPercentage(totalProfitPercent);
         
         elements.totalProfitPercent.className = 'summary-percentage ' + 
@@ -175,8 +182,16 @@ const UIManager = (function() {
      * Render stock card
      */
     function renderStockCard(stock, quote) {
-        const currentValue = quote ? quote.price * stock.shares : 0;
-        const costBasis = stock.buyPrice * stock.shares;
+        // For Swiss stocks: both quote.price and stock.buyPrice are in CHF
+        // For other stocks: both are in USD, then converted to CHF for display
+        const isSwissStock = stock.ticker.endsWith('.SW');
+        const skipConversion = quote && quote.skipConversion;
+        
+        const currentPrice = quote ? quote.price : 0;
+        const buyPrice = stock.buyPrice;
+        
+        const currentValue = currentPrice * stock.shares;
+        const costBasis = buyPrice * stock.shares;
         const profitLoss = currentValue - costBasis;
         const profitLossPercent = costBasis > 0 ? (profitLoss / costBasis) * 100 : 0;
         
@@ -194,7 +209,7 @@ const UIManager = (function() {
                     <span class="stock-name">${stock.ticker}</span>
                 </div>
                 <div class="stock-price">
-                    <div class="current-price">${quote ? formatCurrency(quote.price) : '---'}</div>
+                    <div class="current-price">${quote ? formatCurrency(quote.price, quote.skipConversion) : '---'}</div>
                     ${quote ? `<div class="price-change ${quote.change >= 0 ? 'positive' : 'negative'}">
                         ${formatPercentage(quote.changePercent)}
                     </div>` : ''}
@@ -207,7 +222,7 @@ const UIManager = (function() {
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Value</span>
-                    <span class="detail-value">${formatCurrency(currentValue)}</span>
+                    <span class="detail-value">${formatCurrency(currentValue, skipConversion)}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">P/L</span>
@@ -264,8 +279,10 @@ const UIManager = (function() {
             document.getElementById('tickerSearch').value = stock.companyName || stock.ticker;
             document.getElementById('tickerSymbol').value = stock.ticker;
             document.getElementById('shares').value = stock.shares;
-            // Convert USD buy price to CHF for display
-            const buyPriceCHF = stock.buyPrice * exchangeRate;
+            // Swiss stocks: buyPrice already in CHF, no conversion needed
+            // Other stocks: Convert USD buy price to CHF for display
+            const isSwissStock = stock.ticker.endsWith('.SW');
+            const buyPriceCHF = isSwissStock ? stock.buyPrice : stock.buyPrice * exchangeRate;
             document.getElementById('buyPrice').value = buyPriceCHF.toFixed(2);
             document.getElementById('buyDate').value = stock.buyDate;
         } else {
@@ -407,6 +424,7 @@ const UIManager = (function() {
             document.getElementById('detailsTitle').textContent = titleText;
             
             // Render stock info
+            const skipConversion = quote.skipConversion || false;
             const currentValue = quote.price * stock.shares;
             const costBasis = stock.buyPrice * stock.shares;
             const profitLoss = currentValue - costBasis;
@@ -416,7 +434,7 @@ const UIManager = (function() {
             detailsInfo.innerHTML = `
                 <div class="detail-item">
                     <span class="detail-label">Current Price</span>
-                    <span class="detail-value">${formatCurrency(quote.price)}</span>
+                    <span class="detail-value">${formatCurrency(quote.price, skipConversion)}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Shares Owned</span>
@@ -424,12 +442,12 @@ const UIManager = (function() {
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Total Value</span>
-                    <span class="detail-value">${formatCurrency(currentValue)}</span>
+                    <span class="detail-value">${formatCurrency(currentValue, skipConversion)}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Total Profit/Loss</span>
                     <span class="detail-value ${profitLoss >= 0 ? 'positive' : 'negative'}">
-                        ${formatCurrency(profitLoss)} (${formatPercentage(profitLossPercent)})
+                        ${formatCurrency(profitLoss, skipConversion)} (${formatPercentage(profitLossPercent)})
                     </span>
                 </div>
                 <div class="detail-item">
@@ -438,7 +456,7 @@ const UIManager = (function() {
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Buy Price</span>
-                    <span class="detail-value">${formatCurrency(stock.buyPrice)}</span>
+                    <span class="detail-value">${formatCurrency(stock.buyPrice, skipConversion)}</span>
                 </div>
             `;
             
@@ -586,17 +604,23 @@ const UIManager = (function() {
     }
 
     /**
-     * Get form data for stock
+     * Get stock form data
      */
     function getStockFormData() {
         const buyPriceCHF = parseFloat(document.getElementById('buyPrice').value);
-        const buyPriceUSD = buyPriceCHF / exchangeRate; // Convert CHF input to USD for storage
+        const ticker = document.getElementById('tickerSymbol').value.toUpperCase().trim();
+        
+        // Swiss stocks: Store price in CHF (no conversion)
+        // Other stocks: Convert CHF input to USD for storage
+        const isSwissStock = ticker.endsWith('.SW');
+        const buyPrice = isSwissStock ? buyPriceCHF : buyPriceCHF / exchangeRate;
         
         return {
-            ticker: document.getElementById('tickerSymbol').value.toUpperCase().trim(),
+            ticker: ticker,
             shares: parseFloat(document.getElementById('shares').value),
-            buyPrice: buyPriceUSD, // Store in USD
-            buyDate: document.getElementById('buyDate').value
+            buyPrice: buyPrice,
+            buyDate: document.getElementById('buyDate').value,
+            isSwissStock: isSwissStock // Flag for later use
         };
     }
 

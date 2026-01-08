@@ -264,11 +264,12 @@ const APIManager = (function() {
                         change: twelveQuote.change,
                         changePercent: twelveQuote.changePercent,
                         volume: twelveQuote.volume,
-                        currency: twelveQuote.currency,
+                        currency: twelveQuote.currency || 'CHF',
                         lastUpdated: twelveQuote.lastUpdated,
-                        source: 'TwelveData'
+                        source: 'TwelveData',
+                        skipConversion: true  // Swiss stocks already in CHF
                     };
-                    console.log(`✅ Twelve Data successful for ${ticker}`);
+                    console.log(`✅ Twelve Data successful for ${ticker} (CHF)`);
                 } catch (twelveError) {
                     console.warn(`⚠️ Twelve Data failed, trying Yahoo Finance...`);
                     
@@ -279,11 +280,12 @@ const APIManager = (function() {
                         price: yahooQuote.price,
                         change: yahooQuote.change,
                         changePercent: yahooQuote.changePercent,
-                        currency: yahooQuote.currency,
+                        currency: yahooQuote.currency || 'CHF',
                         lastUpdated: yahooQuote.regularMarketTime.toISOString().split('T')[0],
-                        source: 'YahooFinance'
+                        source: 'YahooFinance',
+                        skipConversion: yahooQuote.currency === 'CHF'  // Skip if already CHF
                     };
-                    console.log(`✅ Yahoo Finance successful for ${ticker}`);
+                    console.log(`✅ Yahoo Finance successful for ${ticker} (${yahooQuote.currency})`);
                 }
             } else {
                 // Strategy 2: For US/international stocks, try Alpha Vantage first
@@ -305,7 +307,9 @@ const APIManager = (function() {
                         changePercent: parseFloat(quote['10. change percent'].replace('%', '')),
                         volume: parseInt(quote['06. volume']),
                         lastUpdated: quote['07. latest trading day'],
-                        source: 'AlphaVantage'
+                        currency: 'USD',
+                        source: 'AlphaVantage',
+                        skipConversion: false  // USD needs conversion to CHF
                     };
                 } catch (alphaError) {
                     console.warn(`⚠️ Alpha Vantage failed for ${ticker}, trying Finnhub...`);
@@ -319,7 +323,9 @@ const APIManager = (function() {
                         changePercent: finnhubQuote.changePercent,
                         volume: 0,
                         lastUpdated: new Date(finnhubQuote.timestamp * 1000).toISOString().split('T')[0],
-                        source: 'Finnhub'
+                        currency: 'USD',
+                        source: 'Finnhub',
+                        skipConversion: false  // USD needs conversion to CHF
                     };
                     console.log(`✅ Finnhub successful for ${ticker}`);
                 }
